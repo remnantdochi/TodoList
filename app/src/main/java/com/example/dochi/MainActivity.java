@@ -1,11 +1,24 @@
 package com.example.dochi;
 
+import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.app.NotificationChannel;
+import android.graphics.Color;
+import android.os.Build;
+import android.support.v4.app.INotificationSideChannel;
+import android.app.AlarmManager;
 import android.app.DatePickerDialog;
 import android.app.Dialog;
+import android.app.Notification;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.content.Context;
+import android.content.Intent;
 import android.os.Bundle;
+
+import androidx.core.app.NotificationCompat;
 import androidx.recyclerview.widget.DividerItemDecoration;
 import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -32,6 +45,10 @@ import java.util.ArrayList;
 import java.util.Calendar;
 
 public class MainActivity extends AppCompatActivity implements CustomAdapter.onStartDragListener {
+
+    private long Alarm;
+    private long Alarm1;
+
     private ArrayList<todo> mArrayList;
     private CustomAdapter mAdapter;
     private ItemTouchHelper mItemTouchHelper;
@@ -55,12 +72,33 @@ public class MainActivity extends AppCompatActivity implements CustomAdapter.onS
         mItemTouchHelper.startDrag(holder);
     }
 
+    @RequiresApi(api = Build.VERSION_CODES.KITKAT)
+    private void startAlarm(int AYear, int AMonth, int ADay, String ATitle, String ADetail) {
+        Calendar c = Calendar.getInstance();
+        c.set(AYear, AMonth-1, ADay, 9, 0,0);
+        AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+        Intent intent = new Intent(this, AlertReceiver.class);
+        intent.putExtra("title", ATitle);
+        intent.putExtra("detail", ADetail);
+        PendingIntent pendingIntent = PendingIntent.getBroadcast(this, 1, intent, 0);
+
+        if (c.before(Calendar.getInstance())) {
+            c.add(Calendar.DATE, 1);
+        }
+        alarmManager.setExact(AlarmManager.RTC_WAKEUP, c.getTimeInMillis(), pendingIntent);
+    }
+
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        Calendar calendar = Calendar.getInstance();
+        calendar.set(2019,9, 8, 9, 0, 0);
+        Alarm = calendar.getTimeInMillis();
+
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        RecyclerView mRecyclerView = (RecyclerView) findViewById(R.id.recyclerView);
+        final RecyclerView mRecyclerView = (RecyclerView) findViewById(R.id.recyclerView);
         LinearLayoutManager mLinearLayoutManager = new LinearLayoutManager(this);
         mRecyclerView.setLayoutManager(mLinearLayoutManager);
 
@@ -81,6 +119,7 @@ public class MainActivity extends AppCompatActivity implements CustomAdapter.onS
         buttonInsert.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+
                 AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
 
                 //edit.xml의 내용을 불러온다
@@ -93,6 +132,7 @@ public class MainActivity extends AppCompatActivity implements CustomAdapter.onS
                 mYear = c.get(Calendar.YEAR);
                 mMonth = c.get(Calendar.MONTH);
                 mDay = c.get(Calendar.DAY_OF_MONTH);
+                Alarm1 = c.getTimeInMillis();
 
                 final Button ButtonSubmit = (Button) view.findViewById(R.id.save);
                 final EditText editTitle = (EditText) view.findViewById(R.id.edit_title);
@@ -125,14 +165,20 @@ public class MainActivity extends AppCompatActivity implements CustomAdapter.onS
 
 
                 ButtonSubmit.setOnClickListener(new View.OnClickListener() {
+                    @RequiresApi(api = Build.VERSION_CODES.KITKAT)
                     public void onClick(View v) {
                         String strTitle = editTitle.getText().toString();
                         String strDetail = editDetail.getText().toString();
                         String duedate = String.valueOf(mYear) + ". " + String.valueOf(mMonth) + ". " + String.valueOf(mDay);
 
                         if (mYear == c.get(Calendar.YEAR) && mMonth == c.get(Calendar.MONTH) && mDay == c.get(Calendar.DAY_OF_MONTH)) {
-                            //마감 날짜가 현재일 경우 표시 안함
                             duedate = "";
+                        }
+                        else{
+                            startAlarm(mYear, mMonth, mDay, strTitle, strDetail);
+                            //Toast.makeText(MainActivity.this, "now"+String.valueOf(Alarm1), Toast.LENGTH_SHORT).show();
+                            //Toast.makeText(MainActivity.this, "date"+String.valueOf(Alarm), Toast.LENGTH_SHORT).show();
+                            //makingNotification(Alarm1+5000000,strTitle,strDetail);
                         }
 
                         //새로 추가된 할일을 list에 추가
@@ -155,6 +201,8 @@ public class MainActivity extends AppCompatActivity implements CustomAdapter.onS
                     mMonth = monthofYear+1;
                     mDay = dayofMonth;
                     popup.setVisibility(View.VISIBLE);
+
+
                     editDate.setText(String.valueOf(mYear).concat(". ").concat(String.valueOf(mMonth)).concat(". ").concat(String.valueOf(mDay)));
                 }
             };
